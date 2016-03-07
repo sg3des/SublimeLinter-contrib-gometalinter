@@ -10,7 +10,7 @@
 
 """This module exports the Gometalinter plugin class."""
 
-import os, subprocess, re
+import os, subprocess
 
 
 from SublimeLinter.lint import Linter, highlight, util
@@ -41,7 +41,7 @@ class Gometalinter(Linter):
             print('sublimelinter: using system GOPATH={}'.format(os.environ.get('GOPATH', '')))
 
     def run(self, cmd, code):
-        filename = os.path.basename(self.filename)
+        cmd = ' '.join(cmd)+' -I ^%s'%(os.path.basename(self.filename))
 
         p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,shell=True)
         (output, err) = p.communicate()
@@ -54,13 +54,4 @@ class Gometalinter(Linter):
             return 
 
         if len(output)>0:
-            output = output.decode('utf-8')
-            output = output.splitlines(True)
-
-            clearOut = ''
-            for line in output:
-                if re.match('^%s:'%filename,line):
-                    clearOut+=line
-                    
-            if len(clearOut)>0:
-                return clearOut
+            return output.decode('utf-8')
