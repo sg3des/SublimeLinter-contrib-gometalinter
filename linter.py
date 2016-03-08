@@ -13,6 +13,8 @@
 import os, subprocess, tempfile, re, codecs
 from os import path
 from SublimeLinter.lint import Linter, highlight, util
+from SublimeLinter.lint.persist import settings
+
 
 
 class Gometalinter(Linter):
@@ -39,14 +41,24 @@ class Gometalinter(Linter):
             print('sublimelinter: using system GOPATH={}'.format(os.environ.get('GOPATH', '')))
 
     def run(self, cmd, code):
-        # return
-        print('--------')
-        files = [f for f in os.listdir(path.dirname(self.filename)) if f.endswith('.go')]
+        lint_mode = settings.get('lint_mode')
 
-        return self.tmpdir(cmd, files, code)
+        if 'save' in lint_mode:
+            output = self.loadsave(cmd)
+        else:
+            output = self.tmpdir(cmd, code)
+
+        return output
+
+    def loadsave(self, cmd):
+        filename = path.basename(self.filename)
+        dirname = path.dirname(self.filename)
+
+        cmd = ''.join(cmd)+' . -I ^%s'%filename
+        return self.execute(cmd)
 
     # creates tmp directory whith clone structure of gopath direcory by symlinks, write linting file. Change GOPATH env to new tmp dir, execute gometalinter and clear all this.
-    def tmpdir(self, cmd, files, code):
+    def tmpdir(self, cmd, code):
         filename = path.basename(self.filename)
         dirname = path.dirname(self.filename)
 
