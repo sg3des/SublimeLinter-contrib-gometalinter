@@ -50,7 +50,7 @@ class Gometalinter(Linter):
         filename = path.basename(self.filename)
         dirname = path.dirname(self.filename)
 
-        gopath = path.expanduser(self.get_view_settings().get('gopath'))
+        gopath = self.determineGopath()
 
         fakegopath = path.join(tempfile.tempdir,'gometalinter',)
 
@@ -102,6 +102,22 @@ class Gometalinter(Linter):
             os.symlink(path.join(dirname,f),target)
 
         return
+
+    def determineGopath(self):
+        gopath = self.get_view_settings().get('gopath')
+        if gopath:
+            return path.expanduser(gopath)
+        
+        if self.env and self.env['GOPATH']:
+            return path.expanduser(self.env['GOPATH'])
+
+        gopath = os.environ.get('GOPATH')
+        if gopath:
+            if ":" in gopath:
+                gopath = gopath.split(':')
+                return gopath[0]
+
+            return gopath
 
     def execute(self, cmd):
         # time.sleep(3)
