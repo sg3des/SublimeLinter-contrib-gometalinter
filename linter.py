@@ -50,7 +50,6 @@ class Gometalinter(Linter):
         filename = path.basename(self.filename)
         dirname = path.dirname(self.filename)
 
-        usergopath = os.environ.get('GOPATH')
         gopath = path.expanduser(self.get_view_settings().get('gopath'))
 
         fakegopath = path.join(tempfile.tempdir,'gometalinter',)
@@ -60,7 +59,6 @@ class Gometalinter(Linter):
 
         fakegopath = tempfile.mkdtemp(dir=fakegopath)
 
-        os.environ['GOPATH']=fakegopath
         fakepathwd = dirname.replace(gopath, fakegopath)
 
         if not path.exists(fakepathwd):
@@ -84,10 +82,10 @@ class Gometalinter(Linter):
             p = path.dirname(p)
 
         os.chdir(fakepathwd)
-        cmd = ' '.join(cmd)+' -I ^%s'%filename
+        cmd = 'GOPATH=%s '%fakegopath+' '.join(cmd)+' -I ^%s'%filename
+
         out = self.execute(cmd)
 
-        os.environ['GOPATH']=usergopath
         self.removetmpdir(fakegopath)
 
         return out
