@@ -10,10 +10,8 @@
 
 """This module exports the Gometalinter plugin class."""
 
-import os, subprocess, tempfile, re, fnmatch, time
+import os, subprocess, tempfile, re, codecs
 from os import path
-
-
 from SublimeLinter.lint import Linter, highlight, util
 
 
@@ -75,9 +73,8 @@ class Gometalinter(Linter):
         # if path.exists(lintfile):
         #     os.remove(lintfile)
 
-        f = open(lintfile, 'w+')
-        f.write(code)
-        f.read()
+        with codecs.open(lintfile, 'w', encoding='utf8') as f:
+            f.write(code)
 
         # recursive creates symlinks from the path of lint file
         p = dirname
