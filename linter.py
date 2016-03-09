@@ -10,7 +10,7 @@
 
 """This module exports the Gometalinter plugin class."""
 
-import os, subprocess, tempfile, re, codecs
+import os, subprocess, tempfile, re, codecs, shutil
 from os import path
 from SublimeLinter.lint import Linter, highlight, util
 from SublimeLinter.lint.persist import settings
@@ -43,22 +43,30 @@ class Gometalinter(Linter):
     def run(self, cmd, code):
         lint_mode = settings.get('lint_mode')
 
-        if 'save' in lint_mode:
-            output = self.loadsave(cmd)
-        else:
-            output = self.tmpdir(cmd, code)
+        if self.view.is_dirty() is False:
+            return self.linthere(cmd)
 
-        return output
+        if lint_mode == 'load/save' or lint_mode == 'save only':
+            return self.linthere(cmd)
 
-    def loadsave(self, cmd):
-        filename = path.basename(self.filename)
-        dirname = path.dirname(self.filename)
+        files = os.listdir(os.path.dirname(self.filename))
+        # need be supplemented by other similar situations
+        if 'vendor' in self.filename or 'vendor' in files:
+            return self.linttmp(cmd, code)
 
-        cmd = ''.join(cmd)+' . -I ^%s'%filename
+        return self.shorttmp(cmd, code)
+
+    def linthere(self, cmd):
+        cmd = ''.join(cmd)+' . -I ^%s'%path.basename(self.filename)
         return self.execute(cmd)
 
+    def shorttmp(self, cmd, code):
+        cmd = cmd + ['.','-I','^%s'%os.path.basename(self.filename)]
+        files = [f for f in os.listdir(os.path.dirname(self.filename)) if f.endswith('.go')]
+        return self.tmpdir(cmd, files, code)
+
     # creates tmp directory whith clone structure of gopath direcory by symlinks, write linting file. Change GOPATH env to new tmp dir, execute gometalinter and clear all this.
-    def tmpdir(self, cmd, code):
+    def linttmp(self, cmd, code):
         filename = path.basename(self.filename)
         dirname = path.dirname(self.filename)
 
@@ -98,7 +106,7 @@ class Gometalinter(Linter):
 
         out = self.execute(cmd)
 
-        self.removetmpdir(fakegopath)
+        shutil.rmtree(fakegopath)
 
         return out
 
@@ -143,17 +151,3 @@ class Gometalinter(Linter):
 
         if len(output)>0:
             return output.decode('utf-8')
-
-    # clear and remove tmp directory
-    def removetmpdir(self, tmpdir):
-        for root, dirs, files in os.walk(tmpdir, topdown=False):
-            for name in files:
-                os.remove(os.path.join(root, name))
-            for name in dirs:
-                if path.islink(os.path.join(root, name)):
-                    os.remove(os.path.join(root, name))
-                else:
-                    os.rmdir(os.path.join(root, name))
-
-        os.rmdir(tmpdir)
-                # os.rmdir(os.path.join(root, name))
