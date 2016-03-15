@@ -14,6 +14,7 @@ import os, subprocess, tempfile, re, codecs, shutil
 from os import path
 from SublimeLinter.lint import Linter, highlight, util
 from SublimeLinter.lint.persist import settings
+import sublime
 
 
 
@@ -30,18 +31,24 @@ class Gometalinter(Linter):
         """Initialize and load GOPATH from settings if present."""
         Linter.__init__(self, view, syntax)
 
-        gopath = self.get_view_settings().get('gopath')
-        if gopath:
-            if self.env:
-                self.env['GOPATH'] = gopath
-            else:
-                self.env = {'GOPATH': gopath}
-            print('sublimelinter: GOPATH={}'.format(self.env['GOPATH']))
-        else:
-            print('sublimelinter: using system GOPATH={}'.format(os.environ.get('GOPATH', '')))
+        self.gopath = view.settings().get("env")['GOPATH'] if view.settings().get("env")['GOPATH'] else self.get_view_settings().get('gopath') if self.get_view_settings().get('gopath') else os.environ.get('GOPATH')
+
+        os.env = {'GOPATH':self.gopath}
+        # print(self.gopath)
+        # return
+        # if gopath:
+        #     if self.env:
+        #         self.env['GOPATH'] = gopath
+        #     else:
+        #         self.env = {'GOPATH': gopath}
+        #     print('sublimelinter: GOPATH={}'.format(self.env['GOPATH']))
+        # else:
+        #     print('sublimelinter: using system GOPATH={}'.format(os.environ.get('GOPATH', '')))
 
     def run(self, cmd, code):
         lint_mode = settings.get('lint_mode')
+
+        # return
 
         if self.view.is_dirty() is False:
             return self.linthere(cmd)
@@ -57,7 +64,9 @@ class Gometalinter(Linter):
         return self.shorttmp(cmd, code)
 
     def linthere(self, cmd):
-        cmd = ''.join(cmd)+' . -I ^%s'%path.basename(self.filename)
+        print(self.env)
+        cmd = 'GOPATH=%s '%(self.gopath)+' '.join(cmd)+' . -I ^%s'%path.basename(self.filename)
+        # print(cmd)
         return self.execute(cmd)
 
     def shorttmp(self, cmd, code):
@@ -70,7 +79,7 @@ class Gometalinter(Linter):
         filename = path.basename(self.filename)
         dirname = path.dirname(self.filename)
 
-        gopath = self.determineGopath()
+        # gopath = self.determineGopath()
 
         fakegopath = path.join(tempfile.tempdir,'gometalinter',)
 
@@ -79,13 +88,13 @@ class Gometalinter(Linter):
 
         fakegopath = tempfile.mkdtemp(dir=fakegopath)
 
-        fakepathwd = dirname.replace(gopath, fakegopath)
+        fakepathwd = dirname.replace(self.gopath, fakegopath)
 
         if not path.exists(fakepathwd):
             os.makedirs(fakepathwd)
 
         if not path.exists(path.join(fakegopath,'pkg')):
-            os.symlink(path.join(gopath,'pkg'),path.join(fakegopath,'pkg'))
+            os.symlink(path.join(self.gopath,'pkg'),path.join(fakegopath,'pkg'))
 
         lintfile = path.join(fakepathwd,filename)
 
@@ -123,21 +132,21 @@ class Gometalinter(Linter):
 
         return
 
-    def determineGopath(self):
-        gopath = self.get_view_settings().get('gopath')
-        if gopath:
-            return path.expanduser(gopath)
+    # def determineGopath(self):
+    #     gopath = self.get_view_settings().get('gopath')
+    #     if gopath:
+    #         return path.expanduser(gopath)
         
-        if self.env and self.env['GOPATH']:
-            return path.expanduser(self.env['GOPATH'])
+    #     if self.env and self.env['GOPATH']:
+    #         return path.expanduser(self.env['GOPATH'])
 
-        gopath = os.environ.get('GOPATH')
-        if gopath:
-            if ":" in gopath:
-                gopath = gopath.split(':')
-                return gopath[0]
+    #     gopath = os.environ.get('GOPATH')
+    #     if gopath:
+    #         if ":" in gopath:
+    #             gopath = gopath.split(':')
+    #             return gopath[0]
 
-            return gopath
+    #         return gopath
 
     def execute(self, cmd):
         # time.sleep(3)
